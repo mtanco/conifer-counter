@@ -1,0 +1,3 @@
+h2o-wave==0.13.0
+loguru
+numpy
