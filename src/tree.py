@@ -1,4 +1,4 @@
-
+import pickle
 
 class Tree:
 
@@ -12,14 +12,21 @@ class Tree:
 
 
 class Trees:
-    def __init__(self):
-        self.trees = get_conifer_list()
+    def __init__(self, file=None):
+        self.trees = get_conifer_list(file)
 
     def get_total_trees(self):
         return sum(t.count for t in self.trees)
 
+    def save_to_disk(self, file):
+        save_object(self.trees, file)
 
-def get_conifer_list():
+
+def get_conifer_list(file):
+    if file is not None:
+        with open(file, 'rb') as input:
+            return pickle.load(input)
+
     trees = list()
 
     trees.append(Tree('araucaria', 'Araucariaceae'))
@@ -30,3 +37,8 @@ def get_conifer_list():
     trees.append(Tree('yew', 'Taxaceae'))
 
     return trees
+
+
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)

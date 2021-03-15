@@ -1,4 +1,5 @@
 import os
+import datetime
 
 from h2o_wave import main, app, Q, ui, on, handle_on
 from loguru import logger
@@ -21,57 +22,49 @@ async def serve(q: Q):
 
 def initialize_client(q: Q):
 
-    if not q.user.initialized:
-        initialize_user(q)
+    if not q.user.initialized: initialize_user(q)  # User needs to be setup before the client can be
 
     logger.debug('Initializing client')
+
     q.client.trees = Trees()
 
-    create_main_ui(q)
-    render_tree_cards(q)
+    create_main_ui(q)  # setup the page layout
+    q.client.cards = []  # used to hold reference to cards to delete when changing the page
+    render_tree_cards(q)  # setup the home page
 
     q.client.initialized = True
 
 
 def initialize_user(q: Q):
 
-    if not q.app.initialized:
-        initialize_app(q)
+    if not q.app.initialized: initialize_app(q)  # app needs to be setup before the user can be
 
     logger.debug(f'Initializing {q.user}')
 
+    # Create a user and save reference to them in tha pp
     user_id = q.auth.subject
-
-    # Create a new user
-    new_user = AppUser(
-        user_id=user_id, email=q.auth.username, users_dir=q.app.users_dir
-    )
-
-    # Set newly created user as current user
+    new_user = AppUser(user_id=user_id, email=q.auth.username, users_dir=q.app.users_dir)
     q.user.user = new_user
-
-    # Add user to the list of app Users
     q.app.users[user_id] = new_user
 
-    q.user.trees = Trees()
+    # q.user.trees = Trees()
     q.user.initialized = True
 
 
 def initialize_app(q: Q):
     logger.debug('Initializing app')
 
-    # Setup the directory structure for the app in the local file system
-    q.app.users = {}
-    create_app_dirs(q)
+    q.app.users = {}  # reference of all users of this app
+    create_app_dirs(q)  # local disk to save user data (not currently used)
 
-    q.app.trees = Trees()
+    # q.app.trees = Trees()
     q.app.initialized = True
 
 
 @on()
 async def increment_tree_count(q: Q):
     common_name = q.args.increment_tree_count
-    logger.debug(f'Incrementing {common_name}')
+    logger.debug(f'Incrementing {common_name} for {q.user.user.name}')
 
     client_tree = next((x for x in q.client.trees.trees if x.common_name == common_name), None)
     user_tree = next((x for x in q.user.trees.trees if x.common_name == common_name), None)
@@ -85,21 +78,44 @@ async def increment_tree_count(q: Q):
     q.page[common_name].items[2].text_m.content = f'Total sightings by you: {user_tree.count}'
     q.page[common_name].items[3].text_m.content = f'Total sightings by all users: {app_tree.count}'
 
-    q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
-    q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
+    # q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
+    # q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
+    q.page['title'].title = f'Total trees this session: {q.client.trees.get_total_trees()}'
 
 
 @on()
-async def refresh_counts(q: Q):
-    q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
-    q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
+async def view_counts(q: Q):
+    logger.debug('Getting latest counts')
+
+    # q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
+    # q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
+    q.page['title'].title = f'Total trees this session: {q.client.trees.get_total_trees()}'
+
+    q.page['title'].items[0].button.label = 'View Leaderboard'
+    q.page['title'].items[1].button.label = 'Refresh Counts'
 
     render_tree_cards(q)
 
 
+@on()
+async def view_historic_counts(q: Q):
+    logger.debug('Processing historic information')
+
+    q.page['title'].items[0].button.label = 'Refresh Leaderboard'
+    q.page['title'].items[1].button.label = 'View Counts'
+
+    render_leaderboard(q)
+
+
+@on()
+async def save_counts(q: Q):
+    logger.debug('Saving data and restarting app for client')
+    q.client.trees.save_to_disk(f'{q.user.user.user_dir}/{str(datetime.datetime.now())}.pkl')
+    initialize_client(q)
+
+
 def create_main_ui(q: Q):
     logger.debug('Creating page layout')
-    q.page['meta'] = ui.meta_card(box='', title='Conifer Counter')
 
     q.page['meta'] = ui.meta_card(
         box='',
@@ -152,10 +168,14 @@ def create_main_ui(q: Q):
     )
     q.page['title'] = ui.section_card(
         box='title',
-        title=f'Trees you\'ve seen: {q.user.trees.get_total_trees()}',
-        subtitle=f'Trees we\'ve all seen: {q.app.trees.get_total_trees()}',
+        title=f'Total trees this session: {q.client.trees.get_total_trees()}',
+        # title=f'Trees you\'ve seen: {q.user.trees.get_total_trees()}',
+        # subtitle=f'Trees we\'ve seen: {q.app.trees.get_total_trees()}',
+        subtitle='',
         items=[
-            ui.button(name='refresh_counts', label='Get Latest Counts')
+            ui.button(name='view_historic_counts', label='View Past Sessions'),
+            ui.button(name='view_counts', label='Refresh Counts'),
+            ui.button(name='save_counts', label='End Session', tooltip='Save this session\'s counts and reset to 0.')
         ]
     )
     q.page['footer'] = ui.footer_card(
@@ -165,7 +185,10 @@ def create_main_ui(q: Q):
 
 
 def render_tree_cards(q):
-    logger.debug('Creating content cards')
+    logger.debug('Creating tree cards')
+
+    for c in q.client.cards:
+        del q.page[c]
 
     length = len(q.client.trees.trees)
     for i in range(length):
@@ -193,15 +216,57 @@ def render_tree_cards(q):
             items=[
                 ui.text_xl(f'{client_tree.common_name.title()}: {client_tree.family}'),
                 ui.text_m(f'Sightings this session: {client_tree.count}'),
-                ui.text_m(f'Total sightings by you: {q.user.trees.trees[i].count}'),
-                ui.text_m(f'Total sightings by all users: {q.app.trees.trees[i].count}'),
+                # ui.text_m(f'Total sightings by you: {q.user.trees.trees[i].count}'),
+                # ui.text_m(f'Total sightings by all users: {q.app.trees.trees[i].count}'),
                 ui.button(name='increment_tree_count', label='Tree spotted!', value=client_tree.common_name)
             ]
         )
 
+        q.client.cards.append(client_tree.common_name)
 
-# TODO currently never doing anything with this
+
+def render_leaderboard(q: Q):
+    logger.debug('Creating leaderboard')
+
+    for c in q.client.cards:
+        del q.page[c]
+
+    # Create columns for our issue table.
+    columns = [
+                  ui.table_column(name='user', label='User'),
+                  ui.table_column(name='total', label='Total Count', sortable=True, data_type='number')
+              ] + [ui.table_column(name=t.common_name, label=t.common_name.title(), sortable=True, data_type='number')
+                   for t in q.client.trees.trees]
+
+    rows = []
+    for filename in os.listdir(q.user.user.user_dir):
+        trees = Trees(file=os.path.join(q.user.user.user_dir, filename))
+        rows += [ui.table_row(name='row', cells=[q.user.user.name, str(trees.get_total_trees())] + [str(t.count) for t in trees.trees])]
+
+    table = ui.table(
+        name='tree_table',
+        columns=columns,
+        rows=rows,
+        downloadable=True,
+    )
+
+    q.page['leaderboard'] = ui.form_card(
+        box=ui.boxes(
+            ui.box('body'),
+            ui.box('top'),
+            ui.box('top')
+        ),
+        items=[
+            # ui.text(f'{t.common_name}: {t.count}') for t in trees.trees
+            table
+        ]
+    )
+    q.client.cards.append('leaderboard')
+
+
 def create_app_dirs(q: Q):
+    logger.debug('Creating app directory')
+
     # A directory for all users data
     q.app.users_dir = os.path.abspath('./app-data/users')
     os.makedirs(q.app.users_dir, exist_ok=True)
