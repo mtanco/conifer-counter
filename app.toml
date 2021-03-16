@@ -8,4 +8,4 @@ Category = "Other"
 Keywords = []
 
 [Runtime]
-Module = "q_churn.run"
+Module = "src.tree_app"
