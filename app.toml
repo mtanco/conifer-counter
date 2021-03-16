@@ -6,3 +6,6 @@ Description = "Counting the trees you sees"
 LongDescription = "README.md"
 Category = "Other"
 Keywords = []
+
+[Runtime]
+Module = "q_churn.run"
