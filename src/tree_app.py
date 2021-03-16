@@ -32,6 +32,8 @@ def initialize_client(q: Q):
     q.client.cards = []  # used to hold reference to cards to delete when changing the page
     render_tree_cards(q)  # setup the home page
 
+    q.client.theme = 'light'
+
     q.client.initialized = True
 
 
@@ -47,7 +49,6 @@ def initialize_user(q: Q):
     q.user.user = new_user
     q.app.users[user_id] = new_user
 
-    # q.user.trees = Trees()
     q.user.initialized = True
 
 
@@ -57,7 +58,6 @@ def initialize_app(q: Q):
     q.app.users = {}  # reference of all users of this app
     create_app_dirs(q)  # local disk to save user data (not currently used)
 
-    # q.app.trees = Trees()
     q.app.initialized = True
 
 
@@ -78,8 +78,6 @@ async def increment_tree_count(q: Q):
     q.page[common_name].items[2].text_m.content = f'Total sightings by you: {user_tree.count}'
     q.page[common_name].items[3].text_m.content = f'Total sightings by all users: {app_tree.count}'
 
-    # q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
-    # q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
     q.page['title'].title = f'Total trees this session: {q.client.trees.get_total_trees()}'
 
 
@@ -87,8 +85,6 @@ async def increment_tree_count(q: Q):
 async def view_counts(q: Q):
     logger.debug('Getting latest counts')
 
-    # q.page['title'].title = f'Trees you\'ve seen: {q.user.trees.get_total_trees()}'
-    # q.page['title'].subtitle = f'Trees we\'ve seen: {q.app.trees.get_total_trees()}'
     q.page['title'].title = f'Total trees this session: {q.client.trees.get_total_trees()}'
 
     q.page['title'].items[0].button.label = 'View Leaderboard'
@@ -114,12 +110,27 @@ async def save_counts(q: Q):
     initialize_client(q)
 
 
+@on()
+async def change_mode(q: Q):
+
+    if q.client.theme == 'light':
+        q.page['meta'].theme = 'neon'
+        q.page['header'].commands[0].label = 'Light Mode'
+        q.client.theme = 'neon'
+
+    elif q.client.theme == 'neon':
+        q.page['meta'].theme = 'light'
+        q.page['header'].commands[0].label = 'Dark Mode'
+        q.client.theme = 'light'
+
+
 def create_main_ui(q: Q):
     logger.debug('Creating page layout')
 
     q.page['meta'] = ui.meta_card(
         box='',
         title='Conifer Counter',
+        theme='light',
         layouts=[
             ui.layout(
                 breakpoint='xs',
@@ -164,13 +175,12 @@ def create_main_ui(q: Q):
         title='Conifer Counter',
         subtitle='Counting the trees you sees!',
         icon='Street',
-        icon_color='green'
+        icon_color='green',
+        commands=[ui.command(name='change_mode', label='Dark Mode')]
     )
     q.page['title'] = ui.section_card(
         box='title',
         title=f'Total trees this session: {q.client.trees.get_total_trees()}',
-        # title=f'Trees you\'ve seen: {q.user.trees.get_total_trees()}',
-        # subtitle=f'Trees we\'ve seen: {q.app.trees.get_total_trees()}',
         subtitle='',
         items=[
             ui.button(name='view_historic_counts', label='View Past Sessions'),
@@ -195,11 +205,13 @@ def render_tree_cards(q):
 
         client_tree = q.client.trees.trees[i]
 
+        # for xl layouts should the card be on the first or second row
         if i < length/2:
             xl_box = 'top'
         else:
             xl_box = 'bottom'
 
+        # for medium layouts should the card be on the first, second, or third row
         if i < length/3:
             m_box = 'top'
         elif i < (length/3 * 2):
@@ -216,8 +228,6 @@ def render_tree_cards(q):
             items=[
                 ui.text_xl(f'{client_tree.common_name.title()}: {client_tree.family}'),
                 ui.text_m(f'Sightings this session: {client_tree.count}'),
-                # ui.text_m(f'Total sightings by you: {q.user.trees.trees[i].count}'),
-                # ui.text_m(f'Total sightings by all users: {q.app.trees.trees[i].count}'),
                 ui.button(name='increment_tree_count', label='Tree spotted!', value=client_tree.common_name)
             ]
         )
@@ -257,7 +267,6 @@ def render_leaderboard(q: Q):
             ui.box('top')
         ),
         items=[
-            # ui.text(f'{t.common_name}: {t.count}') for t in trees.trees
             table
         ]
     )
