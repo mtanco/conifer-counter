@@ -1,8 +1,8 @@
 [App]
 Name = "ai.h2o.conifer-counter"
-Version = "0.0.1"
+Version = "0.0.2"
 Title = "Conifer Counter"
 Description = "Counting the trees you sees"
-LongDescription = "about.md"
+LongDescription = "README.md"
 Category = "Other"
 Keywords = []

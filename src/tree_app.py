@@ -67,16 +67,8 @@ async def increment_tree_count(q: Q):
     logger.debug(f'Incrementing {common_name} for {q.user.user.name}')
 
     client_tree = next((x for x in q.client.trees.trees if x.common_name == common_name), None)
-    user_tree = next((x for x in q.user.trees.trees if x.common_name == common_name), None)
-    app_tree = next((x for x in q.app.trees.trees if x.common_name == common_name), None)
-
     client_tree.increment_count()
-    user_tree.increment_count()
-    app_tree.increment_count()
-
     q.page[common_name].items[1].text_m.content = f'Sightings this session: {client_tree.count}'
-    q.page[common_name].items[2].text_m.content = f'Total sightings by you: {user_tree.count}'
-    q.page[common_name].items[3].text_m.content = f'Total sightings by all users: {app_tree.count}'
 
     q.page['title'].title = f'Total trees this session: {q.client.trees.get_total_trees()}'
 
