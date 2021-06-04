@@ -2,7 +2,6 @@ import pickle
 
 
 class Tree:
-
     def __init__(self, common_name: str, family: str):
         self.common_name = common_name
         self.family = family
@@ -25,21 +24,21 @@ class Trees:
 
 def get_conifer_list(file):
     if file is not None:
-        with open(file, 'rb') as input:
+        with open(file, "rb") as input:
             return pickle.load(input)
 
     trees = list()
 
-    trees.append(Tree('araucaria', 'Araucariaceae'))
-    trees.append(Tree('cypress', 'Cupressaceae'))
-    trees.append(Tree('pine', 'Pinaceae'))
-    trees.append(Tree('yellow-wood', 'Podocarpaceae'))
-    trees.append(Tree('umbrella-pine', 'Sciadopityaceae'))
-    trees.append(Tree('yew', 'Taxaceae'))
+    trees.append(Tree("araucaria", "Araucariaceae"))
+    trees.append(Tree("cypress", "Cupressaceae"))
+    trees.append(Tree("pine", "Pinaceae"))
+    trees.append(Tree("yellow-wood", "Podocarpaceae"))
+    trees.append(Tree("umbrella-pine", "Sciadopityaceae"))
+    trees.append(Tree("yew", "Taxaceae"))
 
     return trees
 
 
 def save_object(obj, filename):
-    with open(filename, 'wb') as output:  # Overwrites any existing file.
+    with open(filename, "wb") as output:  # Overwrites any existing file.
         pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
