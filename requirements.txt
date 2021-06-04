@@ -1,3 +1,5 @@
 h2o-wave==0.13.0
 loguru
 numpy
+isort==5.7.0
+black==20.8b1
